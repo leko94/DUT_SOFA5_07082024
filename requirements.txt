@@ -1,3 +1,11 @@
-dash==2.6.0
-pandas
-gunicorn
+dash>=2.0.0
+dash-core-components>=2.0.0
+dash-html-components>=2.0.0
+dash-renderer>=1.9.1
+dash-table>=5.0.0
+plotly>=5.0.0
+pandas>=1.1.5
+openpyxl>=3.0.7
+numpy>=1.19.5
+scikit-learn>=0.24.2
+gunicorn==20.1.0
