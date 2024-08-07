@@ -1,3 +1,4 @@
+import os
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
@@ -8,6 +9,9 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from openpyxl import load_workbook
 from sklearn.impute import SimpleImputer
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 # Initialize the Dash app
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
@@ -16,7 +20,7 @@ server = app.server  # Expose the server for WSGI
 # File paths to the Excel files
 staff_file_path = 'Chart in Microsoft PowerPoint.xlsx'
 students_file_path = 'Students.xlsx'
-student_performance_file_path = 'Student Perfomances.xlsx'
+student_performance_file_path = '/content/Student Perfomances.xlsx'
 
 # Functions to create charts for staff data
 def create_staff_charts():
@@ -590,7 +594,7 @@ def create_student_performance_charts():
 
     # Melt the DataFrame from Sheet2 to have long-form data for easier plotting
     df_melted2 = df2.melt(id_vars=['Department'], value_vars=['2019', '2020', '2021', '2022', '2023'],
-                        var_name='Year', value_name='Success Rates')
+                          var_name='Year', value_name='Success Rates')
 
     # Ensure Success Rates in Sheet3 are strings and convert them to float
     df3['Success Rates of First Time Entering Students'] = df3['Success Rates of First Time Entering Students'].astype(str).str.rstrip('%').astype(float)
@@ -644,16 +648,16 @@ def create_student_performance_charts():
     df5['FACULTY'] = df5['FACULTY'].astype(str).str.rstrip('%').astype(float)
 
     # Ensure Success Rates in Sheet6 are strings and convert them to float
-    for year in ['2014', '2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022',]:
+    for year in ['2014', '2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', ]:
         df6[year] = df6[year].astype(str).str.rstrip('%').astype(float)
     df6['Difference: 2014 vs 2022'] = df6['Difference: 2014 vs 2022'].astype(str).str.rstrip('%').astype(float)
 
     # Ensure Success Rates in Sheet7 are strings and convert them to float
-    for year in ['2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022',]:
+    for year in ['2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', ]:
         df7[year] = df7[year].astype(str).str.rstrip('%').astype(float)
 
     # Ensure Success Rates in Sheet8 are strings and convert them to float
-    for year in ['2014', '2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022',]:
+    for year in ['2014', '2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', ]:
         df8[year] = df8[year].astype(str).str.rstrip('%').astype(float)
     df8['Difference: 2014 vs 2022'] = df8['Difference: 2014 vs 2022'].astype(str).str.rstrip('%').astype(float)
 
@@ -699,7 +703,7 @@ def create_student_performance_charts():
     future_df12 = pd.DataFrame({'Year': future_years12.flatten(), 'Faculty': predictions12})
 
     # Ensure Success Rates in Sheet13 are strings and convert them to float
-    for year in ['2014', '2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022',]:
+    for year in ['2014', '2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', ]:
         df13[year] = df13[year].astype(str).str.rstrip('%').astype(float)
     df13['Difference: 2014 vs 2023'] = df13['Difference: 2014 vs 2023'].astype(str).str.rstrip('%').astype(float)
 
@@ -736,455 +740,395 @@ def create_student_performance_charts():
 
     # Create the graphs for each sheet
     graphs = [
-        dcc.Graph(
-            id='success-rate-graph-sheet1',
-            figure={
-                'data': [
-                    go.Scatter(
-                        x=df1['Year'],
-                        y=df1['Success Rates'],
-                        mode='lines+markers',
-                        name='Actual Success Rate',
-                        line=dict(color='blue')
-                    ),
-                    go.Scatter(
-                        x=future_df1['Year'],
-                        y=future_df1['Success Rates'],
-                        mode='lines+markers',
-                        name='Forecasted Success Rate',
-                        line=dict(color='red', dash='dash')
+        go.Figure(
+            data=[
+                go.Scatter(
+                    x=df1['Year'],
+                    y=df1['Success Rates'],
+                    mode='lines+markers',
+                    name='Actual Success Rate',
+                    line=dict(color='blue')
+                ),
+                go.Scatter(
+                    x=future_df1['Year'],
+                    y=future_df1['Success Rates'],
+                    mode='lines+markers',
+                    name='Forecasted Success Rate',
+                    line=dict(color='red', dash='dash')
+                )
+            ],
+            layout=go.Layout(
+                title='FAS Overall Student Success Rate (Sheet1)',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Success Rate (%)'}
+            )
+        ),
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=df_melted2[df_melted2['Department'] == dept]['Year'],
+                    y=df_melted2[df_melted2['Department'] == dept]['Success Rates'],
+                    name=dept
+                ) for dept in df2['Department']
+            ],
+            layout=go.Layout(
+                title='Department Success Rates by Year (Sheet2)',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Success Rate (%)'},
+                barmode='group'
+            )
+        ),
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=df_melted2[df_melted2['Department'] == dept]['Year'],
+                    y=df_melted2[df_melted2['Department'] == dept]['Success Rates'],
+                    name=dept
+                ) for dept in df2['Department']
+            ],
+            layout=go.Layout(
+                title='Department Success Rates by Year with Highlight (Sheet2)',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Success Rate (%)'},
+                barmode='group',
+                annotations=[
+                    dict(
+                        x=highest_year,
+                        y=df_melted2['Success Rates'].max(),
+                        xref='x',
+                        yref='y',
+                        text='Highest Performance Year',
+                        showarrow=True,
+                        arrowhead=7,
+                        ax=0,
+                        ay=-40
                     )
-                ],
-                'layout': go.Layout(
-                    title='FAS Overall Student Success Rate (Sheet1)',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Success Rate (%)'}
-                )
-            }
+                ]
+            )
         ),
-        dcc.Graph(
-            id='success-rate-bar-graph-sheet2',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=df_melted2[df_melted2['Department'] == dept]['Year'],
-                        y=df_melted2[df_melted2['Department'] == dept]['Success Rates'],
-                        name=dept
-                    ) for dept in df2['Department']
-                ],
-                'layout': go.Layout(
-                    title='Department Success Rates by Year (Sheet2)',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Success Rate (%)'},
-                    barmode='group'
+        go.Figure(
+            data=[
+                go.Scatter(
+                    x=df3['Year'],
+                    y=df3['Success Rates of First Time Entering Students'],
+                    mode='lines+markers',
+                    name='Actual Success Rate',
+                    line=dict(color='green')
+                ),
+                go.Scatter(
+                    x=future_df3['Year'],
+                    y=future_df3['Success Rates'],
+                    mode='lines+markers',
+                    name='Forecasted Success Rate',
+                    line=dict(color='orange', dash='dash')
                 )
-            }
+            ],
+            layout=go.Layout(
+                title='Success Rates of First Time Entering Students (Sheet3)',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Success Rate (%)'}
+            )
         ),
-        dcc.Graph(
-            id='highlight-year',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=df_melted2[df_melted2['Department'] == dept]['Year'],
-                        y=df_melted2[df_melted2['Department'] == dept]['Success Rates'],
-                        name=dept
-                    ) for dept in df2['Department']
-                ],
-                'layout': go.Layout(
-                    title='Department Success Rates by Year with Highlight (Sheet2)',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Success Rate (%)'},
-                    barmode='group',
-                    annotations=[
-                        dict(
-                            x=highest_year,
-                            y=df_melted2['Success Rates'].max(),
-                            xref='x',
-                            yref='y',
-                            text='Highest Performance Year',
-                            showarrow=True,
-                            arrowhead=7,
-                            ax=0,
-                            ay=-40
-                        )
-                    ]
+        go.Figure(
+            data=[
+                go.Scatter(
+                    x=df4['Year'],
+                    y=df4['Success Rates of African Students'],
+                    mode='lines+markers',
+                    name='Actual Success Rate',
+                    line=dict(color='purple')
+                ),
+                go.Scatter(
+                    x=future_df4['Year'],
+                    y=future_df4['Success Rates'],
+                    mode='lines+markers',
+                    name='Forecasted Success Rate',
+                    line=dict(color='brown', dash='dash')
                 )
-            }
+            ],
+            layout=go.Layout(
+                title='Success Rates of African Students (Sheet4)',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Success Rate (%)'}
+            )
         ),
-        dcc.Graph(
-            id='success-rate-graph-sheet3',
-            figure={
-                'data': [
-                    go.Scatter(
-                        x=df3['Year'],
-                        y=df3['Success Rates of First Time Entering Students'],
-                        mode='lines+markers',
-                        name='Actual Success Rate',
-                        line=dict(color='green')
-                    ),
-                    go.Scatter(
-                        x=future_df3['Year'],
-                        y=future_df3['Success Rates'],
-                        mode='lines+markers',
-                        name='Forecasted Success Rate',
-                        line=dict(color='orange', dash='dash')
+        go.Figure(
+            data=[
+                go.Scatter(
+                    x=df5['Year'],
+                    y=df5['FACULTY'],
+                    mode='lines+markers',
+                    name='FACULTY Success Rate',
+                    line=dict(color='cyan')
+                )
+            ],
+            layout=go.Layout(
+                title='Faculty Student Throughput - Undergraduate',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Success Rate (%)'}
+            )
+        ),
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=[year for year in range(2014, 2022)],
+                    y=df6.loc[df6['Department'] == dept, [str(year) for year in range(2014, 2022)]].values.flatten(),
+                    name=dept
+                ) for dept in df6['Department']
+            ],
+            layout=go.Layout(
+                title='Department Success Rates by Year (Sheet6)',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Success Rate (%)'},
+                barmode='group'
+            )
+        ),
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=df6['Department'],
+                    y=df6['Difference: 2014 vs 2022'],
+                    name='Difference 2014 vs 2022',
+                    marker=dict(color='blue')
+                )
+            ],
+            layout=go.Layout(
+                title='Difference in Success Rates 2014 vs 2022 (Sheet6)',
+                xaxis={'title': 'Department'},
+                yaxis={'title': 'Difference (%)'}
+            )
+        ),
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=[str(year) for year in range(2015, 2022)],
+                    y=df7.loc[df7['Department'] == dept, [str(year) for year in range(2015, 2022)]].values.flatten(),
+                    name=dept
+                ) for dept in df7[df7['Department'].str.contains('Masters')]['Department']
+            ],
+            layout=go.Layout(
+                title='Postgraduate Throughput - Masters',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Success Rate (%)'},
+                barmode='group'
+            )
+        ),
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=[str(year) for year in range(2015, 2022)],
+                    y=df7.loc[df7['Department'] == dept, [str(year) for year in range(2015, 2022)]].values.flatten(),
+                    name=dept
+                ) for dept in df7[df7['Department'].str.contains('PhD')]['Department']
+            ],
+            layout=go.Layout(
+                title='Postgraduate Throughput - PhD',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Success Rate (%)'},
+                barmode='group'
+            )
+        ),
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=[str(year) for year in range(2014, 2022)],
+                    y=df8.loc[df8['Department'] == dept, [str(year) for year in range(2014, 2022)]].values.flatten(),
+                    name=dept
+                ) for dept in df8['Department']
+            ],
+            layout=go.Layout(
+                title='Student Dropout Rates - Undergraduate',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Dropout Rate (%)'},
+                barmode='group'
+            )
+        ),
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=[str(year) for year in range(2014, 2021)],
+                    y=df9.loc[df9['Department'] == dept, [str(year) for year in range(2014, 2021)]].values.flatten(),
+                    name=dept
+                ) for dept in df9['Department']
+            ],
+            layout=go.Layout(
+                title='Dropout Rate in The First Year',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Dropout Rate (%)'},
+                barmode='group'
+            )
+        ),
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=df10['Department'],
+                    y=df10['Dropout'],
+                    name='Dropout'
+                ),
+                go.Bar(
+                    x=df10['Department'],
+                    y=df10['Throughput'],
+                    name='Throughput'
+                ),
+                go.Bar(
+                    x=df10['Department'],
+                    y=df10['Still in Progress'],
+                    name='Still in Progress'
+                )
+            ],
+            layout=go.Layout(
+                title='Dropout, Throughput, and Still in Progress (Sheet10)',
+                xaxis={'title': 'Department'},
+                yaxis={'title': 'Percentage (%)'},
+                barmode='group'
+            )
+        ),
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=[str(year) for year in range(2014, 2024) if str(year) in df11.columns],
+                    y=df11.loc[df11['Department'] == dept, [str(year) for year in range(2014, 2024) if str(year) in df11.columns]].values.flatten(),
+                    name=dept
+                ) for dept in df11[df11['Department'].str.contains('Masters')]['Department']
+            ],
+            layout=go.Layout(
+                title='Postgraduate Dropout - Masters',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Dropout Rate (%)'},
+                barmode='group'
+            )
+        ),
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=[str(year) for year in range(2014, 2024) if str(year) in df11.columns],
+                    y=df11.loc[df11['Department'] == dept, [str(year) for year in range(2014, 2024) if str(year) in df11.columns]].values.flatten(),
+                    name=dept
+                ) for dept in df11[df11['Department'].str.contains('PhD')]['Department']
+            ],
+            layout=go.Layout(
+                title='Postgraduate Dropout - PhD',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Dropout Rate (%)'},
+                barmode='group'
+            )
+        ),
+        go.Figure(
+            data=[
+                go.Scatter(
+                    x=df12_filtered['Year'],
+                    y=df12_filtered['Faculty'],
+                    mode='lines+markers',
+                    name='Actual Graduation Rate',
+                    line=dict(color='blue')
+                ),
+                go.Scatter(
+                    x=future_df12['Year'],
+                    y=future_df12['Faculty'],
+                    mode='lines+markers',
+                    name='Forecasted Graduation Rate',
+                    line=dict(color='red', dash='dash')
+                )
+            ],
+            layout=go.Layout(
+                title='FAS Graduation Rates',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Graduation Rate (%)'},
+                annotations=[
+                    dict(
+                        x=2021,
+                        y=df12.loc[df12['Year'] == '2021', 'Faculty'].values[0],
+                        xref='x',
+                        yref='y',
+                        text='Difference: 2014 vs 2021 = 13%',
+                        showarrow=True,
+                        arrowhead=7,
+                        ax=0,
+                        ay=-40
                     )
-                ],
-                'layout': go.Layout(
-                    title='Success Rates of First Time Entering Students (Sheet3)',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Success Rate (%)'}
-                )
-            }
+                ]
+            )
         ),
-        dcc.Graph(
-            id='success-rate-graph-sheet4',
-            figure={
-                'data': [
-                    go.Scatter(
-                        x=df4['Year'],
-                        y=df4['Success Rates of African Students'],
-                        mode='lines+markers',
-                        name='Actual Success Rate',
-                        line=dict(color='purple')
-                    ),
-                    go.Scatter(
-                        x=future_df4['Year'],
-                        y=future_df4['Success Rates'],
-                        mode='lines+markers',
-                        name='Forecasted Success Rate',
-                        line=dict(color='brown', dash='dash')
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=[year for year in range(2014, 2024)],
+                    y=df13.loc[df13['Department'] == dept, [str(year) for year in range(2014, 2024)]].values.flatten(),
+                    name=dept
+                ) for dept in df13['Department']
+            ],
+            layout=go.Layout(
+                title='Graduation Rates By Programme',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Graduation Rate (%)'},
+                barmode='group',
+                annotations=[
+                    dict(
+                        x=2021,
+                        y=df13[[str(year) for year in range(2014, 2024)]].max().max(),
+                        xref='x',
+                        yref='y',
+                        text='Year with Most Graduates',
+                        showarrow=True,
+                        arrowhead=7,
+                        ax=0,
+                        ay=-40
                     )
-                ],
-                'layout': go.Layout(
-                    title='Success Rates of African Students (Sheet4)',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Success Rate (%)'}
-                )
-            }
+                ]
+            )
         ),
-        dcc.Graph(
-            id='success-rate-graph-sheet5',
-            figure={
-                'data': [
-                    go.Scatter(
-                        x=df5['Year'],
-                        y=df5['FACULTY'],
-                        mode='lines+markers',
-                        name='FACULTY Success Rate',
-                        line=dict(color='cyan')
-                    )
-                ],
-                'layout': go.Layout(
-                    title='Faculty Student Throughput - Undergraduate',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Success Rate (%)'}
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=df13['Department'],
+                    y=df13['Difference: 2014 vs 2023'],
+                    name='Difference 2014 vs 2023',
+                    marker=dict(color='blue')
                 )
-            }
+            ],
+            layout=go.Layout(
+                title='Difference in Graduation Rates 2014 vs 2022 (Sheet13)',
+                xaxis={'title': 'Department'},
+                yaxis={'title': 'Difference (%)'}
+            )
         ),
-        dcc.Graph(
-            id='success-rate-bar-graph-sheet6',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=[year for year in range(2014, 2022)],
-                        y=df6.loc[df6['Department'] == dept, [str(year) for year in range(2014, 2022)]].values.flatten(),
-                        name=dept
-                    ) for dept in df6['Department']
-                ],
-                'layout': go.Layout(
-                    title='Department Success Rates by Year (Sheet6)',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Success Rate (%)'},
-                    barmode='group'
+        go.Figure(
+            data=[
+                go.Scatter(
+                    x=df14['Year'],
+                    y=df14['Faculty'],
+                    mode='lines+markers',
+                    name='Actual Graduation Rate',
+                    line=dict(color='blue')
+                ),
+                go.Scatter(
+                    x=future_df14['Year'],
+                    y=future_df14['Faculty'],
+                    mode='lines+markers',
+                    name='Forecasted Graduation Rate',
+                    line=dict(color='red', dash='dash')
                 )
-            }
+            ],
+            layout=go.Layout(
+                title='Postgraduate Graduation Rate',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Graduation Rate (%)'}
+            )
         ),
-        dcc.Graph(
-            id='difference-graph-sheet6',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=df6['Department'],
-                        y=df6['Difference: 2014 vs 2022'],
-                        name='Difference 2014 vs 2022',
-                        marker=dict(color='blue')
-                    )
-                ],
-                'layout': go.Layout(
-                    title='Difference in Success Rates 2014 vs 2022 (Sheet6)',
-                    xaxis={'title': 'Department'},
-                    yaxis={'title': 'Difference (%)'}
-                )
-            }
-        ),
-        dcc.Graph(
-            id='postgraduate-throughput-masters',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=[str(year) for year in range(2015, 2022)],
-                        y=df7.loc[df7['Department'] == dept, [str(year) for year in range(2015, 2022)]].values.flatten(),
-                        name=dept
-                    ) for dept in df7[df7['Department'].str.contains('Masters')]['Department']
-                ],
-                'layout': go.Layout(
-                    title='Postgraduate Throughput - Masters',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Success Rate (%)'},
-                    barmode='group'
-                )
-            }
-        ),
-        dcc.Graph(
-            id='postgraduate-throughput-phd',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=[str(year) for year in range(2015, 2022)],
-                        y=df7.loc[df7['Department'] == dept, [str(year) for year in range(2015, 2022)]].values.flatten(),
-                        name=dept
-                    ) for dept in df7[df7['Department'].str.contains('PhD')]['Department']
-                ],
-                'layout': go.Layout(
-                    title='Postgraduate Throughput - PhD',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Success Rate (%)'},
-                    barmode='group'
-                )
-            }
-        ),
-        dcc.Graph(
-            id='student-dropout-rates-undergraduate',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=[str(year) for year in range(2014, 2022)],
-                        y=df8.loc[df8['Department'] == dept, [str(year) for year in range(2014, 2022)]].values.flatten(),
-                        name=dept
-                    ) for dept in df8['Department']
-                ],
-                'layout': go.Layout(
-                    title='Student Dropout Rates - Undergraduate',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Dropout Rate (%)'},
-                    barmode='group'
-                )
-            }
-        ),
-        dcc.Graph(
-            id='dropout-rate-first-year',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=[str(year) for year in range(2014, 2021)],
-                        y=df9.loc[df9['Department'] == dept, [str(year) for year in range(2014, 2021)]].values.flatten(),
-                        name=dept
-                    ) for dept in df9['Department']
-                ],
-                'layout': go.Layout(
-                    title='Dropout Rate in The First Year',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Dropout Rate (%)'},
-                    barmode='group'
-                )
-            }
-        ),
-        dcc.Graph(
-            id='dropout-throughput-still-progress',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=df10['Department'],
-                        y=df10['Dropout'],
-                        name='Dropout'
-                    ),
-                    go.Bar(
-                        x=df10['Department'],
-                        y=df10['Throughput'],
-                        name='Throughput'
-                    ),
-                    go.Bar(
-                        x=df10['Department'],
-                        y=df10['Still in Progress'],
-                        name='Still in Progress'
-                    )
-                ],
-                'layout': go.Layout(
-                    title='Dropout, Throughput, and Still in Progress (Sheet10)',
-                    xaxis={'title': 'Department'},
-                    yaxis={'title': 'Percentage (%)'},
-                    barmode='group'
-                )
-            }
-        ),
-        dcc.Graph(
-            id='postgraduate-dropout-masters',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=[str(year) for year in range(2014, 2024) if str(year) in df11.columns],
-                        y=df11.loc[df11['Department'] == dept, [str(year) for year in range(2014, 2024) if str(year) in df11.columns]].values.flatten(),
-                        name=dept
-                    ) for dept in df11[df11['Department'].str.contains('Masters')]['Department']
-                ],
-                'layout': go.Layout(
-                    title='Postgraduate Dropout - Masters',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Dropout Rate (%)'},
-                    barmode='group'
-                )
-            }
-        ),
-        dcc.Graph(
-            id='postgraduate-dropout-phd',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=[str(year) for year in range(2014, 2024) if str(year) in df11.columns],
-                        y=df11.loc[df11['Department'] == dept, [str(year) for year in range(2014, 2024) if str(year) in df11.columns]].values.flatten(),
-                        name=dept
-                    ) for dept in df11[df11['Department'].str.contains('PhD')]['Department']
-                ],
-                'layout': go.Layout(
-                    title='Postgraduate Dropout - PhD',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Dropout Rate (%)'},
-                    barmode='group'
-                )
-            }
-        ),
-        dcc.Graph(
-            id='fas-graduation-rates',
-            figure={
-                'data': [
-                    go.Scatter(
-                        x=df12_filtered['Year'],
-                        y=df12_filtered['Faculty'],
-                        mode='lines+markers',
-                        name='Actual Graduation Rate',
-                        line=dict(color='blue')
-                    ),
-                    go.Scatter(
-                        x=future_df12['Year'],
-                        y=future_df12['Faculty'],
-                        mode='lines+markers',
-                        name='Forecasted Graduation Rate',
-                        line=dict(color='red', dash='dash')
-                    )
-                ],
-                'layout': go.Layout(
-                    title='FAS Graduation Rates',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Graduation Rate (%)'},
-                    annotations=[
-                        dict(
-                            x=2021,
-                            y=df12.loc[df12['Year'] == '2021', 'Faculty'].values[0],
-                            xref='x',
-                            yref='y',
-                            text='Difference: 2014 vs 2021 = 13%',
-                            showarrow=True,
-                            arrowhead=7,
-                            ax=0,
-                            ay=-40
-                        )
-                    ]
-                )
-            }
-        ),
-        dcc.Graph(
-            id='graduation-rates-by-programme',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=[year for year in range(2014, 2024)],
-                        y=df13.loc[df13['Department'] == dept, [str(year) for year in range(2014, 2024)]].values.flatten(),
-                        name=dept
-                    ) for dept in df13['Department']
-                ],
-                'layout': go.Layout(
-                    title='Graduation Rates By Programme',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Graduation Rate (%)'},
-                    barmode='group',
-                    annotations=[
-                        dict(
-                            x=2021,
-                            y=df13[[str(year) for year in range(2014, 2024)]].max().max(),
-                            xref='x',
-                            yref='y',
-                            text='Year with Most Graduates',
-                            showarrow=True,
-                            arrowhead=7,
-                            ax=0,
-                            ay=-40
-                        )
-                    ]
-                )
-            }
-        ),
-        dcc.Graph(
-            id='difference-graph-sheet13',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=df13['Department'],
-                        y=df13['Difference: 2014 vs 2023'],
-                        name='Difference 2014 vs 2023',
-                        marker=dict(color='blue')
-                    )
-                ],
-                'layout': go.Layout(
-                    title='Difference in Graduation Rates 2014 vs 2022 (Sheet13)',
-                    xaxis={'title': 'Department'},
-                    yaxis={'title': 'Difference (%)'}
-                )
-            }
-        ),
-        dcc.Graph(
-            id='postgraduate-graduation-rate',
-            figure={
-                'data': [
-                    go.Scatter(
-                        x=df14['Year'],
-                        y=df14['Faculty'],
-                        mode='lines+markers',
-                        name='Actual Graduation Rate',
-                        line=dict(color='blue')
-                    ),
-                    go.Scatter(
-                        x=future_df14['Year'],
-                        y=future_df14['Faculty'],
-                        mode='lines+markers',
-                        name='Forecasted Graduation Rate',
-                        line=dict(color='red', dash='dash')
-                    )
-                ],
-                'layout': go.Layout(
-                    title='Postgraduate Graduation Rate',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Graduation Rate (%)'}
-                )
-            }
-        ),
-        dcc.Graph(
-            id='pass-rates-department',
-            figure={
-                'data': [
-                    go.Bar(
-                        x=[year for year in range(2014, 2024)],
-                        y=df15.loc[df15['Department'] == dept, [str(year) for year in range(2014, 2024)]].values.flatten(),
-                        name=dept
-                    ) for dept in df15['Department']
-                ],
-                'layout': go.Layout(
-                    title='Pass Rates by Department (Sheet15)',
-                    xaxis={'title': 'Year'},
-                    yaxis={'title': 'Pass Rate (%)'},
-                    barmode='group'
-                )
-            }
+        go.Figure(
+            data=[
+                go.Bar(
+                    x=[year for year in range(2014, 2024)],
+                    y=df15.loc[df15['Department'] == dept, [str(year) for year in range(2014, 2024)]].values.flatten(),
+                    name=dept
+                ) for dept in df15['Department']
+            ],
+            layout=go.Layout(
+                title='Pass Rates by Department (Sheet15)',
+                xaxis={'title': 'Year'},
+                yaxis={'title': 'Pass Rate (%)'},
+                barmode='group'
+            )
         )
     ]
 
@@ -1259,7 +1203,6 @@ staff_layout = html.Div(style={'textAlign': 'center'}, children=[
 fig1, fig2, fig3, fig4, fig5, fig6, fig7, fig8, fig9, fig10, fig11, fig12, fig13 = create_students_charts()
 students_layout = html.Div(style={'textAlign': 'center'}, children=[
     html.H1("Students Preliminary Analysis"),
-    html.Img(src='/assets/my_image.png', style={'position': 'absolute', 'top': '10px', 'left': '10px', 'width': '150px', 'height': 'auto'}),
     dcc.Dropdown(
         id='students-dropdown',
         options=students_dropdown_options,
@@ -1273,7 +1216,6 @@ students_layout = html.Div(style={'textAlign': 'center'}, children=[
 performance_figures = create_student_performance_charts()
 performance_layout = html.Div(style={'textAlign': 'center'}, children=[
     html.H1("Student Performance Indicators"),
-    html.Img(src='/assets/my_image.png', style={'position': 'absolute', 'top': '10px', 'left': '10px', 'width': '150px', 'height': 'auto'}),
     dcc.Dropdown(
         id='performance-dropdown',
         options=performance_dropdown_options,
@@ -1281,6 +1223,17 @@ performance_layout = html.Div(style={'textAlign': 'center'}, children=[
         style={'width': '50%', 'margin': 'auto'}
     ),
     dcc.Graph(id='performance-graph')
+])
+
+# Chatbot layout
+chatbot_layout = html.Div(style={'textAlign': 'center'}, children=[
+    html.H1("Chat with Us"),
+    dcc.Textarea(
+        id='chat-input',
+        style={'width': '50%', 'height': '100px', 'margin': 'auto'}
+    ),
+    html.Button('Send', id='send-button', n_clicks=0),
+    html.Div(id='chat-output')
 ])
 
 # Define the main layout with a navigation bar and content
@@ -1291,7 +1244,9 @@ app.layout = html.Div([
         html.Span(' | '),
         dcc.Link('Students Preliminary Analysis', href='/students'),
         html.Span(' | '),
-        dcc.Link('Student Performance Indicators', href='/performance')
+        dcc.Link('Student Performance Indicators', href='/performance'),
+        html.Span(' | '),
+        dcc.Link('Chat with Us', href='/chat')
     ], style={'textAlign': 'center', 'margin': '20px'}),
     html.Div(id='page-content')
 ])
@@ -1304,6 +1259,8 @@ def display_page(pathname):
         return students_layout
     elif pathname == '/performance':
         return performance_layout
+    elif pathname == '/chat':
+        return chatbot_layout
     else:
         return staff_layout
 
@@ -1347,28 +1304,62 @@ def update_students_graph(selected_value):
 @app.callback(Output('performance-graph', 'figure'),
               [Input('performance-dropdown', 'value')])
 def update_performance_graph(selected_value):
-    figures = {
+    performance_figures_dict = {
         'FAS Overall Student Success Rate (Sheet1)': performance_figures[0],
         'Department Success Rates by Year (Sheet2)': performance_figures[1],
-        'Success Rates of First Time Entering Students (Sheet3)': performance_figures[2],
-        'Success Rates of African Students (Sheet4)': performance_figures[3],
-        'Faculty Student Throughput - Undergraduate (Sheet5)': performance_figures[4],
-        'Department Success Rates by Year (Sheet6)': performance_figures[5],
-        'Difference in Success Rates 2014 vs 2022 (Sheet6)': performance_figures[6],
-        'Postgraduate Throughput - Masters (Sheet7)': performance_figures[7],
-        'Postgraduate Throughput - PhD (Sheet7)': performance_figures[8],
-        'Student Dropout Rates - Undergraduate (Sheet8)': performance_figures[9],
-        'Dropout Rate in The First Year (Sheet9)': performance_figures[10],
-        'Dropout, Throughput, and Still in Progress (Sheet10)': performance_figures[11],
-        'Postgraduate Dropout - Masters (Sheet11)': performance_figures[12],
-        'Postgraduate Dropout - PhD (Sheet11)': performance_figures[13],
-        'FAS Graduation Rates (Sheet12)': performance_figures[14],
-        'Graduation Rates By Programme (Sheet13)': performance_figures[15],
-        'Difference in Graduation Rates 2014 vs 2022 (Sheet13)': performance_figures[16],
-        'Postgraduate Graduation Rate (Sheet14)': performance_figures[17],
-        'Pass Rates by Department (Sheet15)': performance_figures[18]
+        'Success Rates of First Time Entering Students (Sheet3)': performance_figures[3],
+        'Success Rates of African Students (Sheet4)': performance_figures[4],
+        'Faculty Student Throughput - Undergraduate (Sheet5)': performance_figures[5],
+        'Department Success Rates by Year (Sheet6)': performance_figures[6],
+        'Difference in Success Rates 2014 vs 2022 (Sheet6)': performance_figures[7],
+        'Postgraduate Throughput - Masters (Sheet7)': performance_figures[8],
+        'Postgraduate Throughput - PhD (Sheet7)': performance_figures[9],
+        'Student Dropout Rates - Undergraduate (Sheet8)': performance_figures[10],
+        'Dropout Rate in The First Year (Sheet9)': performance_figures[11],
+        'Dropout, Throughput, and Still in Progress (Sheet10)': performance_figures[12],
+        'Postgraduate Dropout - Masters (Sheet11)': performance_figures[13],
+        'Postgraduate Dropout - PhD (Sheet11)': performance_figures[14],
+        'FAS Graduation Rates (Sheet12)': performance_figures[15],
+        'Graduation Rates By Programme (Sheet13)': performance_figures[16],
+        'Difference in Graduation Rates 2014 vs 2022 (Sheet13)': performance_figures[17],
+        'Postgraduate Graduation Rate (Sheet14)': performance_figures[18],
+        'Pass Rates by Department (Sheet15)': performance_figures[19]
     }
-    return figures[selected_value]
+    return performance_figures_dict[selected_value]
+
+# Callback for handling chat messages
+@app.callback(
+    Output('chat-output', 'children'),
+    [Input('send-button', 'n_clicks')],
+    [State('chat-input', 'value')]
+)
+def handle_chat(n_clicks, message):
+    if n_clicks > 0 and message:
+        send_email('New Chat Message', message, 'Ngcobo.Nkululeko@yahoo.com')
+        return 'Your message has been sent!'
+    return ''
+
+def send_email(subject, body, to):
+    from_email = 'Ngcobo.Nkululeko@yahoo.com'
+    from_password = 'Ukzn2014'
+
+    msg = MIMEMultipart()
+    msg['From'] = from_email
+    msg['To'] = to
+    msg['Subject'] = subject
+
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        server = smtplib.SMTP('smtp.mail.yahoo.com', 587)
+        server.starttls()
+        server.login(from_email, from_password)
+        text = msg.as_string()
+        server.sendmail(from_email, to, text)
+        server.quit()
+        print("Email sent successfully")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
 
 # Run the Dash app
 if __name__ == '__main__':
