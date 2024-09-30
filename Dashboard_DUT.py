@@ -3,15 +3,15 @@ import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
 import pandas as pd
+import plotly.graph_objects as go
 import plotly.express as px
-import plotly.graph_objs as go
-import numpy as np
-from sklearn.linear_model import LinearRegression
 from openpyxl import load_workbook
-from sklearn.impute import SimpleImputer
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from sklearn.linear_model import LinearRegression
+from sklearn.impute import SimpleImputer
+import numpy as np
 
 # Initialize the Dash app
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
@@ -21,6 +21,13 @@ server = app.server  # Expose the server for WSGI
 staff_file_path = 'Chart in Microsoft PowerPoint.xlsx'
 students_file_path = 'Students.xlsx'
 student_performance_file_path = 'Student Perfomances.xlsx'
+dut_file_path = 'DUT Research.xlsx'
+
+# Load the Excel file for DUT Research
+df_sheet1 = pd.read_excel(dut_file_path, sheet_name='Sheet1')
+df_sheet2 = pd.read_excel(dut_file_path, sheet_name='Sheet2')
+df_sheet3 = pd.read_excel(dut_file_path, sheet_name='Sheet3')
+df_sheet4 = pd.read_excel(dut_file_path, sheet_name='Sheet4')
 
 # Functions to create charts for staff data
 def create_staff_charts():
@@ -546,6 +553,7 @@ def create_students_charts():
     return fig1, fig2, fig3, fig4, fig5, fig6, fig7, fig8, fig9, fig10, fig11, fig12, fig13
 
 # Functions to create charts for student performance data
+
 def create_student_performance_charts():
     # Read the Excel files into DataFrames
     df1 = pd.read_excel(student_performance_file_path, sheet_name='Sheet1')
@@ -1134,6 +1142,149 @@ def create_student_performance_charts():
 
     return graphs
 
+
+def create_dut_charts(selected_graph):
+     
+  app.layout = html.Div([
+    html.H1(""),
+    
+    dcc.Dropdown(
+        id='graph-selector',
+        options=[
+            {'label': 'Postgraduate Enrolment (2020-2023)', 'value': 'graph1'},
+            {'label': 'FAS Postgraduate Enrolment (2020-2023)', 'value': 'graph2'},
+            {'label': '2023 Student Enrolment by Level', 'value': 'graph3'},
+            {'label': 'Postgraduate Graduation Rate (2015-2023)', 'value': 'graph4'},
+            {'label': 'Postgraduate Enrolment 2024 (Image)', 'value': 'image1'},
+            {'label': 'Current Postdoctoral Fellows (Image)', 'value': 'image2'},
+            {'label': 'Emeritus/Honorary/Adjunct Professors (Image)', 'value': 'image3'},
+            {'label': 'Departmental Research Outputs 2023 (Image)', 'value': 'image4'}
+        ],
+        value='graph1'
+    ),
+    
+    dcc.Graph(id='graph-output', style={'display': 'block'}),
+    html.Img(id='image-output', style={'display': 'none', 'width': '80%', 'height': 'auto'}),
+    html.Div(id='image-title', style={'text-align': 'center', 'font-size': '20px', 'margin-top': '10px'})
+])
+
+# Callback function to update the graph or image based on the dropdown selection
+@app.callback(
+    [Output('graph-output', 'figure'), Output('graph-output', 'style'),
+     Output('image-output', 'src'), Output('image-output', 'style'),
+     Output('image-title', 'children')],
+    Input('graph-selector', 'value')
+)
+def update_output(selected_graph):
+    if selected_graph == 'graph1':
+        # Filter data for Sheet1
+        df_filtered = df_sheet1[['Postgraduate Enrolment', '2020', '2021', '2022', '2023']].copy()
+        df_filtered.set_index('Postgraduate Enrolment', inplace=True)
+        
+        # Create the bar chart for graph1
+        fig = go.Figure()
+        for col in df_filtered.columns:
+            fig.add_trace(go.Bar(
+                x=df_filtered.index,
+                y=df_filtered[col],
+                name=col,
+                text=df_filtered[col],  # Display actual values
+                textposition='auto'
+            ))
+        fig.update_layout(
+            title='Postgraduate Enrolment - Actual Student Numbers (2020-2023)',
+            xaxis_title='Subjects',
+            yaxis_title='Number of Students',
+            barmode='group'
+        )
+        return fig, {'display': 'block'}, None, {'display': 'none'}, ''
+    
+    elif selected_graph == 'graph2':
+        # Filter data for Sheet2
+        df_filtered = df_sheet2[['FAS Postgraduate Enrolment', '2020', '2021', '2022', '2023']].copy()
+        df_filtered.set_index('FAS Postgraduate Enrolment', inplace=True)
+        df_filtered *= 100  # Convert values to percentage
+        
+        # Create the bar chart for graph2
+        fig = go.Figure()
+        for col in df_filtered.columns:
+            fig.add_trace(go.Bar(
+                x=df_filtered.index,
+                y=df_filtered[col],
+                name=col,
+                text=[f'{val:.0f}%' for val in df_filtered[col]],  # Display percentages
+                textposition='auto'
+            ))
+        fig.update_layout(
+            title='FAS Postgraduate Enrolment (2020-2023)',
+            xaxis_title='Category',
+            yaxis_title='Enrolment (%)',
+            barmode='group'
+        )
+        return fig, {'display': 'block'}, None, {'display': 'none'}, ''
+    
+    elif selected_graph == 'graph3':
+        # Filter data for Sheet3
+        df_filtered = df_sheet3[['2023 Student Enrolment by Level', 'UG (NQF 5-7)', 'PG upto Masters (NQF8)', 'PG (NQF9-10)']].copy()
+        df_filtered.set_index('2023 Student Enrolment by Level', inplace=True)
+        
+        # Create the bar chart for graph3
+        fig = go.Figure()
+        for col in df_filtered.columns:
+            fig.add_trace(go.Bar(
+                x=df_filtered.index,
+                y=df_filtered[col],
+                name=col,
+                text=df_filtered[col],  # Display actual values
+                textposition='auto'
+            ))
+        fig.update_layout(
+            title='2023 Student Enrolment by Level',
+            xaxis_title='Programs',
+            yaxis_title='Number of Students',
+            barmode='group'
+        )
+        return fig, {'display': 'block'}, None, {'display': 'none'}, ''
+    
+    elif selected_graph == 'graph4':
+        # Strip any leading/trailing spaces from column names and ensure integer type for graduation rate
+        df_sheet4.columns = df_sheet4.columns.str.strip()
+        df_sheet4['Postgraduate Graduation Rate'] = df_sheet4['Postgraduate Graduation Rate'].astype(int)
+        
+        # Create the line graph for graph4
+        fig = go.Figure(data=go.Scatter(
+            x=df_sheet4['Postgraduate Graduation Rate'],
+            y=df_sheet4['Faculty'],
+            mode='lines+markers',
+            text=[f'{val}%' for val in df_sheet4['Faculty']],  # Display percentage values
+            textposition='bottom center',
+            line=dict(color='blue')
+        ))
+        fig.update_layout(
+            title='Postgraduate Graduation Rate (2015-2023)',
+            xaxis_title='Year',
+            yaxis_title='Graduation Rate (%)',
+            xaxis=dict(tickmode='linear')  # Ensure all years are displayed
+        )
+        return fig, {'display': 'block'}, None, {'display': 'none'}, ''
+    
+    elif selected_graph == 'image1':
+        # Display first image (Postgraduate Enrolment 2024)
+        return {}, {'display': 'none'}, '/content/1.png', {'display': 'block'}, 'Postgraduate Enrolment 2024'
+    
+    elif selected_graph == 'image2':
+        # Display second image (Current Postdoctoral Fellows)
+        return {}, {'display': 'none'}, '/content/2.png', {'display': 'block'}, 'Current Postdoctoral Fellows'
+    
+    elif selected_graph == 'image3':
+        # Display third image (Emeritus/Honorary/Adjunct Professors)
+        return {}, {'display': 'none'}, '/content/3.png', {'display': 'block'}, 'Emeritus/Honorary/Adjunct Professors'
+    
+    elif selected_graph == 'image4':
+        # Display fourth image (Departmental Research Outputs 2023)
+        return {}, {'display': 'none'}, '/content/4.png', {'display': 'block'}, 'Departmental Research Outputs 2023'
+
+
 # Dropdown options for the staff and student pages
 staff_dropdown_options = [
     {'label': 'Faculty Data (Sheet1)', 'value': 'Sheet1'},
@@ -1146,6 +1297,7 @@ staff_dropdown_options = [
     {'label': 'Percentage Difference (2022 vs. 2014)', 'value': 'Sheet5_diff'},
     {'label': 'Percentage of Full-Time Permanent Academic Staff with PhD (2014-2022)', 'value': 'Sheet5'}
 ]
+
 
 students_dropdown_options = [
     {'label': 'Headcount Enrolment: Planned vs Achieved (2014-2022)', 'value': 'fig1'},
@@ -1225,6 +1377,14 @@ performance_layout = html.Div(style={'textAlign': 'center'}, children=[
     dcc.Graph(id='performance-graph')
 ])
 
+
+# DUT Research layout
+dut_layout = html.Div(style={'textAlign': 'center'}, children=[
+    html.H1("DUT Research Dashboard"),
+    dcc.Dropdown(id='dut-dropdown', options=dut_dropdown_options, value='graph1', style={'width': '50%', 'margin': 'auto'}),
+    dcc.Graph(id='dut-graph')
+])
+
 # Chatbot layout
 chatbot_layout = html.Div(style={'textAlign': 'center'}, children=[
     html.H1("Chat with Us"),
@@ -1236,7 +1396,7 @@ chatbot_layout = html.Div(style={'textAlign': 'center'}, children=[
     html.Div(id='chat-output')
 ])
 
-# Define the main layout with a navigation bar and content
+# Main layout with navigation
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     html.Div([
@@ -1246,23 +1406,27 @@ app.layout = html.Div([
         html.Span(' | '),
         dcc.Link('Student Performance Indicators', href='/performance'),
         html.Span(' | '),
-        dcc.Link('Chat with Us', href='/chat')
+        dcc.Link('DUT Research Dashboard', href='/dut')
     ], style={'textAlign': 'center', 'margin': '20px'}),
     html.Div(id='page-content')
 ])
 
-# Callback to render the appropriate page content
-@app.callback(Output('page-content', 'children'),
-              [Input('url', 'pathname')])
+# Callbacks for page navigation
+@app.callback(Output('page-content', 'children'), [Input('url', 'pathname')])
 def display_page(pathname):
     if pathname == '/students':
         return students_layout
     elif pathname == '/performance':
         return performance_layout
-    elif pathname == '/chat':
-        return chatbot_layout
+    elif pathname == '/dut':
+        return dut_layout
     else:
         return staff_layout
+
+# Callbacks for updating graphs
+@app.callback(Output('dut-graph', 'figure'), [Input('dut-dropdown', 'value')])
+def update_dut_graph(selected_graph):
+    return create_dut_charts(selected_graph)
 
 # Callback for updating the staff graph
 @app.callback(Output('staff-graph', 'figure'),
@@ -1279,7 +1443,7 @@ def update_staff_graph(selected_value):
     else:
         return line_figures[selected_value]
 
-# Callback for updating the students graph
+ # Callback for updating the students graph
 @app.callback(Output('students-graph', 'figure'),
               [Input('students-dropdown', 'value')])
 def update_students_graph(selected_value):
@@ -1300,9 +1464,6 @@ def update_students_graph(selected_value):
     }
     return figures[selected_value]
 
-# Callback for updating the performance graph
-@app.callback(Output('performance-graph', 'figure'),
-              [Input('performance-dropdown', 'value')])
 def update_performance_graph(selected_value):
     performance_figures_dict = {
         'FAS Overall Student Success Rate (Sheet1)': performance_figures[0],
@@ -1326,40 +1487,6 @@ def update_performance_graph(selected_value):
         'Pass Rates by Department (Sheet15)': performance_figures[19]
     }
     return performance_figures_dict[selected_value]
-
-# Callback for handling chat messages
-@app.callback(
-    Output('chat-output', 'children'),
-    [Input('send-button', 'n_clicks')],
-    [State('chat-input', 'value')]
-)
-def handle_chat(n_clicks, message):
-    if n_clicks > 0 and message:
-        send_email('New Chat Message', message, 'Ngcobo.Nkululeko@yahoo.com')
-        return 'Your message has been sent!'
-    return ''
-
-def send_email(subject, body, to):
-    from_email = 'Ngcobo.Nkululeko@yahoo.com'
-    from_password = 'Ukzn2014'
-
-    msg = MIMEMultipart()
-    msg['From'] = from_email
-    msg['To'] = to
-    msg['Subject'] = subject
-
-    msg.attach(MIMEText(body, 'plain'))
-
-    try:
-        server = smtplib.SMTP('smtp.mail.yahoo.com', 587)
-        server.starttls()
-        server.login(from_email, from_password)
-        text = msg.as_string()
-        server.sendmail(from_email, to, text)
-        server.quit()
-        print("Email sent successfully")
-    except Exception as e:
-        print(f"Failed to send email: {e}")
 
 # Run the Dash app
 if __name__ == '__main__':
