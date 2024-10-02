@@ -1144,9 +1144,8 @@ def create_student_performance_charts():
 
 
 def create_dut_charts(selected_graph):
-     
-  app.layout = html.Div([
-    html.H1(""),
+app.layout = html.Div([
+    html.H1("DUT Research Dashboard", style={'text-align': 'center'}),
     
     dcc.Dropdown(
         id='graph-selector',
@@ -1160,13 +1159,65 @@ def create_dut_charts(selected_graph):
             {'label': 'Emeritus/Honorary/Adjunct Professors (Image)', 'value': 'image3'},
             {'label': 'Departmental Research Outputs 2023 (Image)', 'value': 'image4'}
         ],
-        value='graph1'
+        value='graph1',
+        style={'width': '50%', 'margin': 'auto'}  # Center dropdown
     ),
     
-    dcc.Graph(id='graph-output', style={'display': 'block'}),
-    html.Img(id='image-output', style={'display': 'none', 'width': '80%', 'height': 'auto'}),
-    html.Div(id='image-title', style={'text-align': 'center', 'font-size': '20px', 'margin-top': '10px'})
+    dcc.Graph(id='graph-output', style={'display': 'block'}),  # To display the graph
+    html.Img(id='image-output', style={'display': 'none', 'width': '80%', 'height': 'auto'}),  # To display images
+    html.Div(id='image-title', style={'text-align': 'center', 'font-size': '20px', 'margin-top': '10px'})  # Title for images
 ])
+
+# Callback to update graph or image based on dropdown selection
+@app.callback(
+    [Output('graph-output', 'figure'), Output('graph-output', 'style'),
+     Output('image-output', 'src'), Output('image-output', 'style'),
+     Output('image-title', 'children')],
+    [Input('graph-selector', 'value')]
+)
+def update_output(selected_graph):
+    if selected_graph == 'graph1':
+        # Generate the graph for Postgraduate Enrolment (2020-2023)
+        fig = go.Figure(data=[go.Bar(x=df_sheet1['Year'], y=df_sheet1['Postgraduate Enrolment'])])
+        fig.update_layout(title='Postgraduate Enrolment (2020-2023)')
+        return fig, {'display': 'block'}, None, {'display': 'none'}, ''
+    
+    elif selected_graph == 'graph2':
+        # Generate the graph for FAS Postgraduate Enrolment (2020-2023)
+        fig = go.Figure(data=[go.Bar(x=df_sheet2['Year'], y=df_sheet2['FAS Postgraduate Enrolment'])])
+        fig.update_layout(title='FAS Postgraduate Enrolment (2020-2023)')
+        return fig, {'display': 'block'}, None, {'display': 'none'}, ''
+    
+    elif selected_graph == 'graph3':
+        # Generate the graph for 2023 Student Enrolment by Level
+        fig = go.Figure(data=[go.Bar(x=df_sheet3['Level'], y=df_sheet3['Enrolment'])])
+        fig.update_layout(title='2023 Student Enrolment by Level')
+        return fig, {'display': 'block'}, None, {'display': 'none'}, ''
+    
+    elif selected_graph == 'graph4':
+        # Generate the graph for Postgraduate Graduation Rate (2015-2023)
+        fig = go.Figure(data=[go.Scatter(x=df_sheet4['Year'], y=df_sheet4['Graduation Rate'], mode='lines+markers')])
+        fig.update_layout(title='Postgraduate Graduation Rate (2015-2023)')
+        return fig, {'display': 'block'}, None, {'display': 'none'}, ''
+    
+    elif selected_graph == 'image1':
+        # Display the image for Postgraduate Enrolment 2024
+        return {}, {'display': 'none'}, '/assets/postgraduate_enrolment_2024.png', {'display': 'block'}, 'Postgraduate Enrolment 2024'
+    
+    elif selected_graph == 'image2':
+        # Display the image for Current Postdoctoral Fellows
+        return {}, {'display': 'none'}, '/assets/postdoctoral_fellows.png', {'display': 'block'}, 'Current Postdoctoral Fellows'
+    
+    elif selected_graph == 'image3':
+        # Display the image for Emeritus/Honorary/Adjunct Professors
+        return {}, {'display': 'none'}, '/assets/emeritus_professors.png', {'display': 'block'}, 'Emeritus/Honorary/Adjunct Professors'
+    
+    elif selected_graph == 'image4':
+        # Display the image for Departmental Research Outputs 2023
+        return {}, {'display': 'none'}, '/assets/research_outputs_2023.png', {'display': 'block'}, 'Departmental Research Outputs 2023'
+    
+    return {}, {'display': 'block'}, None, {'display': 'none'}, ''
+
 
 # Callback function to update the graph or image based on the dropdown selection
 @app.callback(
