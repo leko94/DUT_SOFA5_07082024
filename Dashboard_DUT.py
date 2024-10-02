@@ -1489,5 +1489,7 @@ def update_performance_graph(selected_value):
     return performance_figures_dict[selected_value]
 
 # Run the Dash app
+server = app.server  # Expose the Flask server for Gunicorn
+
 if __name__ == '__main__':
-    app.run_server(debug=True, port=8050)
+    app.run_server(debug=True)
